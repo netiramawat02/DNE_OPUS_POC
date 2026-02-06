@@ -8,3 +8,5 @@ reportlab
 python-dotenv
 tiktoken
 mcp
+pytesseract
+pdf2image
