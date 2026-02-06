@@ -1,0 +1,10 @@
+pypdf
+langchain
+langchain-community
+langchain-openai
+faiss-cpu
+streamlit
+reportlab
+python-dotenv
+tiktoken
+mcp
