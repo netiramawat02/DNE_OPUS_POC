@@ -3,10 +3,12 @@ langchain
 langchain-community
 langchain-openai
 faiss-cpu
-streamlit
 reportlab
 python-dotenv
 tiktoken
 mcp
 pytesseract
 pdf2image
+fastapi
+uvicorn
+python-multipart
