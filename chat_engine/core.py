@@ -10,9 +10,13 @@ class ChatEngine:
         if llm:
             self.llm = llm
         else:
+            api_key = settings.OPENAI_API_KEY
+            if not api_key:
+                raise ValueError("OpenAI API Key is missing. Please set the OPENAI_API_KEY environment variable.")
+
             self.llm = ChatOpenAI(
                 model=settings.OPENAI_MODEL,
-                openai_api_key=settings.OPENAI_API_KEY or "sk-placeholder",
+                openai_api_key=api_key,
                 temperature=0
             )
 

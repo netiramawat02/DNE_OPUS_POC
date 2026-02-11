@@ -14,13 +14,11 @@ class RAGEngine:
             # Default to OpenAI Embeddings
             api_key = settings.OPENAI_API_KEY
             if not api_key:
-                # Warn or handle gracefully? For now assume user will provide key.
-                # If no key, we might crash on use if not mocked.
-                pass
+                raise ValueError("OpenAI API Key is missing. Please set the OPENAI_API_KEY environment variable.")
 
             self.embeddings = OpenAIEmbeddings(
                 model=settings.EMBEDDING_MODEL,
-                openai_api_key=api_key or "sk-placeholder"
+                openai_api_key=api_key
             )
 
         self.vector_store = None
