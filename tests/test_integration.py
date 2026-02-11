@@ -3,7 +3,19 @@ from unittest.mock import MagicMock
 from ingestion.pdf_loader import PDFLoader
 from rag_engine.vector_store import RAGEngine
 from chat_engine.core import ChatEngine
+from langchain_core.embeddings import Embeddings
+from typing import List
 import os
+
+class FakeEmbeddings(Embeddings):
+    def __init__(self, size=1536):
+        self.size = size
+
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        return [[0.1] * self.size for _ in texts]
+
+    def embed_query(self, text: str) -> List[float]:
+        return [0.1] * self.size
 
 class TestIntegration(unittest.TestCase):
     def test_full_flow(self):
@@ -16,15 +28,9 @@ class TestIntegration(unittest.TestCase):
         text = PDFLoader.extract_text_from_file(sample_path)
         self.assertTrue(len(text) > 0, "Text extraction failed")
 
-        # 2. RAG Indexing (Mock Embeddings to avoid API call)
-        # We need to patch RAGEngine to use fake embeddings or mock it
-        # For integration test without API key, we have to mock the components that call API.
-
-        rag = RAGEngine()
-        # Mocking embeddings internal call or using a fake one if we could inject it easily.
-        # Since RAGEngine constructor does logic, let's use the one we designed that accepts embeddings.
-        from tests.test_rag import FakeEmbeddings
-        rag.embeddings = FakeEmbeddings()
+        # 2. RAG Indexing
+        # Provide FakeEmbeddings to RAGEngine constructor to avoid API key requirement
+        rag = RAGEngine(embeddings=FakeEmbeddings())
         rag.index_documents(text, "test_doc")
 
         results = rag.search("payment")
