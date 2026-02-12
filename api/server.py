@@ -1,11 +1,13 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Dict
 import shutil
 import os
 import uuid
 import io
+import tempfile
+import logging
 
 # Re-use existing engines
 from ingestion.pdf_loader import PDFLoader
@@ -34,6 +36,7 @@ class AppState:
     chat_engine = ChatEngine(rag_engine)
     metadata_store: List[dict] = []
     processed_files = set()
+    processing_files: Dict[str, dict] = {}
 
 state = AppState()
 
@@ -49,30 +52,20 @@ class ContractResponse(BaseModel):
     id: str
     filename: str
     metadata: Optional[ContractMetadata]
+    status: str = "processed"
 
-@app.post("/api/upload")
-async def upload_contract(file: UploadFile = File(...)):
-    filename = file.filename
-    if filename in state.processed_files:
-        return {"message": "File already processed", "filename": filename}
-
-    logger.info(f"Processing upload: {filename}")
-
-    # Save temp file or process stream directly
-    # PDFLoader expects stream or path.
-    # To handle potential large files or OCR, writing to temp might be safer,
-    # but for simplicity/in-memory requirement, let's try stream.
-
+def process_contract_background(file_path: str, filename: str, contract_id: str):
+    logger.info(f"Starting background processing for {filename} (ID: {contract_id})")
     try:
-        # Read file into bytes first to allow seeking if needed by PDFLoader/OCR
-        content = await file.read()
-        file_like = io.BytesIO(content)
-
         # Ingest
-        text = PDFLoader.extract_text_from_stream(file_like, filename)
+        text = PDFLoader.extract_text_from_file(file_path)
 
         if not text:
-            raise HTTPException(status_code=400, detail="Could not extract text from PDF")
+            logger.warning(f"No text extracted for {filename}")
+            if contract_id in state.processing_files:
+                state.processing_files[contract_id]["status"] = "failed"
+                state.processing_files[contract_id]["error"] = "No text extracted"
+            return
 
         # Index
         state.rag_engine.index_documents(text, filename)
@@ -81,20 +74,70 @@ async def upload_contract(file: UploadFile = File(...)):
         extractor = MetadataExtractor()
         meta = extractor.extract(text)
 
-        contract_id = str(uuid.uuid4())
+        # Update state: Move from processing to metadata_store
         record = {
             "id": contract_id,
             "filename": filename,
-            "metadata": meta
+            "metadata": meta,
+            "status": "processed"
         }
         state.metadata_store.append(record)
         state.processed_files.add(filename)
 
-        return {"message": "Processed successfully", "id": contract_id, "metadata": meta}
+        # Remove from processing_files
+        if contract_id in state.processing_files:
+            del state.processing_files[contract_id]
+
+        logger.info(f"Successfully processed {filename}")
 
     except Exception as e:
-        logger.error(f"Upload failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Background processing failed for {filename}: {e}")
+        if contract_id in state.processing_files:
+            state.processing_files[contract_id]["status"] = "failed"
+            state.processing_files[contract_id]["error"] = str(e)
+    finally:
+        # Cleanup temp file
+        if os.path.exists(file_path):
+            os.remove(file_path)
+
+@app.post("/api/upload")
+async def upload_contract(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...)
+):
+    filename = file.filename
+    # Check if already processed
+    if filename in state.processed_files:
+        return {"message": "File already processed", "filename": filename, "status": "processed"}
+
+    # Check if currently processing
+    for task in state.processing_files.values():
+        if task["filename"] == filename and task["status"] == "processing":
+             return {"message": "File is currently processing", "filename": filename, "status": "processing", "id": task["id"]}
+
+    logger.info(f"Queuing upload: {filename}")
+    contract_id = str(uuid.uuid4())
+
+    # Save to temp file
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+            shutil.copyfileobj(file.file, tmp)
+            tmp_path = tmp.name
+    except Exception as e:
+        logger.error(f"Failed to save temp file: {e}")
+        raise HTTPException(status_code=500, detail="Failed to save file")
+
+    # Add to processing queue
+    state.processing_files[contract_id] = {
+        "id": contract_id,
+        "filename": filename,
+        "status": "processing",
+        "metadata": None
+    }
+
+    background_tasks.add_task(process_contract_background, tmp_path, filename, contract_id)
+
+    return {"message": "Upload successful, processing started.", "id": contract_id, "status": "processing"}
 
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
@@ -116,4 +159,31 @@ async def chat(request: ChatRequest):
 
 @app.get("/api/contracts", response_model=List[ContractResponse])
 async def list_contracts():
-    return state.metadata_store
+    processed_list = []
+    processed_ids = set()
+    # Copy metadata_store to avoid modification issues if any (though append is atomic-ish)
+    # Actually, iterate over a copy or just assume it's append-only
+    for item in list(state.metadata_store):
+        item_copy = item.copy()
+        if "status" not in item_copy:
+            item_copy["status"] = "processed"
+        processed_list.append(item_copy)
+        processed_ids.add(item["id"])
+
+    # Create a copy of processing files to avoid runtime error during iteration
+    processing_tasks = list(state.processing_files.values())
+
+    processing_list = []
+    for task in processing_tasks:
+        # Avoid race condition duplicates
+        if task["id"] in processed_ids:
+            continue
+
+        processing_list.append({
+            "id": task["id"],
+            "filename": task["filename"],
+            "metadata": task["metadata"],
+            "status": task["status"]
+        })
+
+    return processed_list + processing_list
