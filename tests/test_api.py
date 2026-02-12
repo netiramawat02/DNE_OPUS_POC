@@ -61,21 +61,34 @@ class TestAPI(unittest.TestCase):
         response = client2.get("/api/contracts")
         self.assertEqual(response.status_code, 200)
 
-    def test_public_access_no_key(self):
-        """Test that endpoints are accessible without API Key."""
+    def test_unauthorized_access(self):
+        """Test that endpoints are protected and require API Key."""
         client_no_auth = TestClient(app)
-        # Should succeed
+        # Should fail
         response = client_no_auth.get("/api/contracts")
+        self.assertEqual(response.status_code, 401)
+
+        # Chat should also fail
+        response = client_no_auth.post("/api/chat", json={"query": "Hello"})
+        self.assertEqual(response.status_code, 401)
+
+    def test_protected_access_with_key(self):
+        """Test that endpoints are accessible with a valid API Key."""
+        # Setup client with valid key (admin key)
+        client_auth = TestClient(app)
+        client_auth.headers = {"X-API-Key": "admin-secret-test"}
+
+        response = client_auth.get("/api/contracts")
         self.assertEqual(response.status_code, 200)
 
-        # Chat should also work
+        # Chat should work
         original_process_query = state.chat_engine.process_query
         state.chat_engine.process_query = MagicMock(return_value={
-            "answer": "Public access working.",
+            "answer": "Protected access working.",
             "source_documents": []
         })
         try:
-            response = client_no_auth.post("/api/chat", json={"query": "Hello"})
+            response = client_auth.post("/api/chat", json={"query": "Hello"})
             self.assertEqual(response.status_code, 200)
         finally:
             state.chat_engine.process_query = original_process_query
