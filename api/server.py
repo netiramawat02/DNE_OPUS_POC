@@ -177,7 +177,8 @@ def generate_api_key(admin_key: str = Depends(get_admin_key)):
 @app.post("/api/upload")
 def upload_contract(
     background_tasks: BackgroundTasks,
-    file: UploadFile = File(...)
+    file: UploadFile = File(...),
+    api_key: str = Depends(get_api_key)
 ):
     filename = file.filename
     # Check if already processed
@@ -214,7 +215,7 @@ def upload_contract(
     return {"message": "Upload successful, processing started.", "id": contract_id, "status": "processing"}
 
 @app.post("/api/chat", response_model=ChatResponse)
-def chat(request: ChatRequest):
+def chat(request: ChatRequest, api_key: str = Depends(get_api_key)):
     try:
         response = state.chat_engine.process_query(request.query, contract_id=request.contract_id)
 
@@ -232,7 +233,7 @@ def chat(request: ChatRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/contracts", response_model=List[ContractResponse])
-def list_contracts():
+def list_contracts(api_key: str = Depends(get_api_key)):
     processed_list = []
     processed_ids = set()
     # Copy metadata_store to avoid modification issues if any (though append is atomic-ish)
