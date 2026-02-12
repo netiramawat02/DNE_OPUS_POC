@@ -23,7 +23,7 @@ class TestChat(unittest.TestCase):
 
         self.assertEqual(result["answer"], "The contract expires on 2025-12-31.")
         self.assertEqual(len(result["source_documents"]), 1)
-        mock_rag.search.assert_called_with("When does it expire?")
+        mock_rag.search.assert_called_with("When does it expire?", filter=None)
 
 if __name__ == '__main__':
     unittest.main()

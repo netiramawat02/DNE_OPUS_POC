@@ -21,19 +21,13 @@ class ChatEngine:
             )
 
     def process_query(self, query: str, contract_id: str = None) -> Dict[str, Any]:
-        # Check if any contracts are indexed
-        if self.rag_engine.is_empty:
-            return {
-                "answer": "No contracts have been indexed. Please upload a readable PDF contract first.",
-                "source_documents": []
-            }
-
-        # Retrieve context
-        filter_dict = None
-        if contract_id:
-            filter_dict = {"contract_id": contract_id}
-
-        docs = self.rag_engine.search(query, filter=filter_dict)
+        # Retrieve context if contracts are indexed
+        docs = []
+        if not self.rag_engine.is_empty:
+            filter_dict = None
+            if contract_id:
+                filter_dict = {"contract_id": contract_id}
+            docs = self.rag_engine.search(query, filter=filter_dict)
 
         # Format context
         context_parts = []
@@ -44,33 +38,28 @@ class ChatEngine:
 
         context = "\n".join(context_parts)
 
+        # Determine System Prompt and User Message based on context availability
         if not context:
-            msg = "I couldn't find any relevant information in the uploaded contracts to answer your question."
-            if contract_id:
-                msg = "I couldn't find any relevant information in the selected contract to answer your question."
-            return {
-                "answer": msg,
-                "source_documents": []
-            }
+            system_prompt = """You are an AI assistant for IT Admin Teams specializing in contract analysis.
+            Currently, no relevant information was found in the contracts (or no contracts are indexed).
 
-        # Generate answer
-        system_prompt = """You are an AI assistant for IT Admin Teams specializing in contract analysis.
-        Answer the user's question based strictly on the provided context.
-        If the answer is not in the context, say "I cannot find this information in the contracts provided."
+            Your instructions:
+            1. If the user is greeting you (e.g., "Hi", "Hello"), respond politely and introduce yourself as a contract analysis assistant.
+            2. If the user is asking a general question not related to a specific contract, you may answer based on general knowledge.
+            3. If the user is asking a specific question about a contract, politely explain that you cannot find the information in the available documents and suggest they upload the relevant contract.
+            """
+            user_message = f"Question:\n{query}"
+        else:
+            system_prompt = """You are an AI assistant for IT Admin Teams specializing in contract analysis.
+            Answer the user's question based strictly on the provided context.
+            If the answer is not in the context, say "I cannot find this information in the contracts provided."
 
-        When answering:
-        1. Be precise with dates, names, and clauses.
-        2. Cite the contract name if multiple are present in context.
-        3. Quote the relevant clause if applicable.
-        """
-
-        user_message = f"""
-        Context:
-        {context}
-
-        Question:
-        {query}
-        """
+            When answering:
+            1. Be precise with dates, names, and clauses.
+            2. Cite the contract name if multiple are present in context.
+            3. Quote the relevant clause if applicable.
+            """
+            user_message = f"Context:\n{context}\n\nQuestion:\n{query}"
 
         try:
             response = self.llm.invoke([
