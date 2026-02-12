@@ -61,5 +61,24 @@ class TestAPI(unittest.TestCase):
         response = client2.get("/api/contracts")
         self.assertEqual(response.status_code, 200)
 
+    def test_public_access_no_key(self):
+        """Test that endpoints are accessible without API Key."""
+        client_no_auth = TestClient(app)
+        # Should succeed
+        response = client_no_auth.get("/api/contracts")
+        self.assertEqual(response.status_code, 200)
+
+        # Chat should also work
+        original_process_query = state.chat_engine.process_query
+        state.chat_engine.process_query = MagicMock(return_value={
+            "answer": "Public access working.",
+            "source_documents": []
+        })
+        try:
+            response = client_no_auth.post("/api/chat", json={"query": "Hello"})
+            self.assertEqual(response.status_code, 200)
+        finally:
+            state.chat_engine.process_query = original_process_query
+
 if __name__ == '__main__':
     unittest.main()
