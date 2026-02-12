@@ -18,7 +18,7 @@ from config.settings import settings
 from utils.logger import setup_logger
 from api.auth import get_api_key, get_admin_key, add_api_key
 from langchain_community.embeddings import FakeEmbeddings
-from langchain_community.llms import FakeListLLM
+from langchain_community.chat_models import FakeListChatModel
 
 logger = setup_logger(__name__)
 
@@ -47,7 +47,7 @@ async def startup_event():
 
             # Switch to Mock Mode
             fake_embeddings = FakeEmbeddings(size=1536)
-            fake_llm = FakeListLLM(responses=[
+            fake_llm = FakeListChatModel(responses=[
                 "I am running in MOCK MODE because a valid OpenAI API Key was not found. "
                 "I cannot analyze the PDF content, but the system is functional for demonstration purposes. "
                 "Please update your OPENAI_API_KEY to use the full features."
