@@ -19,6 +19,7 @@ from utils.logger import setup_logger
 from api.auth import get_api_key, get_admin_key, add_api_key
 from langchain_community.embeddings import FakeEmbeddings
 from langchain_community.chat_models import FakeListChatModel
+from langchain_openai import OpenAIEmbeddings
 
 logger = setup_logger(__name__)
 
@@ -36,7 +37,7 @@ async def startup_event():
         logger.info("OpenAI API Key is valid.")
     except Exception as e:
         error_msg = str(e)
-        if "401" in error_msg or "Incorrect API key" in error_msg:
+        if "401" in error_msg or "Incorrect API key" in error_msg or "OpenAI API Key is missing" in error_msg:
             logger.error(f"OpenAI API Key validation failed: {error_msg}")
             logger.warning("----------------------------------------------------------------")
             logger.warning("WARNING: INVALID OPENAI API KEY DETECTED")
@@ -46,6 +47,7 @@ async def startup_event():
             logger.warning("----------------------------------------------------------------")
 
             # Switch to Mock Mode
+            state.is_mock_mode = True
             fake_embeddings = FakeEmbeddings(size=1536)
             fake_llm = FakeListChatModel(responses=[
                 "I am running in MOCK MODE because a valid OpenAI API Key was not found. "
@@ -83,10 +85,14 @@ class AppState:
     metadata_store: List[dict] = []
     processed_files = set()
     processing_files: Dict[str, dict] = {}
+    is_mock_mode: bool = False
 
 state = AppState()
 
 # Request Models
+class SettingsUpdate(BaseModel):
+    openai_api_key: str
+
 class ChatRequest(BaseModel):
     query: str
     contract_id: Optional[str] = None
@@ -230,6 +236,48 @@ def chat(request: ChatRequest):
     except Exception as e:
         logger.error(f"Chat failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/status")
+def get_status():
+    """Returns the current status of the application, including mock mode."""
+    return {
+        "status": "ok",
+        "mock_mode": state.is_mock_mode,
+        "openai_api_key_configured": bool(settings.OPENAI_API_KEY)
+    }
+
+@app.post("/api/settings")
+def update_settings(update: SettingsUpdate):
+    """
+    Updates the OpenAI API Key and re-initializes the engines.
+    """
+    new_key = update.openai_api_key.strip()
+    if not new_key:
+        raise HTTPException(status_code=400, detail="API Key cannot be empty")
+
+    # Validate Key
+    try:
+        embeddings = OpenAIEmbeddings(openai_api_key=new_key)
+        embeddings.embed_query("test")
+    except Exception as e:
+        logger.error(f"Invalid API Key provided: {e}")
+        raise HTTPException(status_code=400, detail="Invalid OpenAI API Key")
+
+    # Update Settings
+    settings.OPENAI_API_KEY = new_key
+    os.environ["OPENAI_API_KEY"] = new_key
+
+    # Re-initialize Engines
+    logger.info("Re-initializing engines with new API Key...")
+    try:
+        state.rag_engine = RAGEngine() # Will use new key from settings
+        state.chat_engine = ChatEngine(state.rag_engine) # Will use new key from settings
+        state.is_mock_mode = False
+    except Exception as e:
+        logger.error(f"Failed to re-initialize engines: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to re-initialize engines: {e}")
+
+    return {"message": "Settings updated successfully. Mock mode disabled."}
 
 @app.get("/api/contracts", response_model=List[ContractResponse])
 def list_contracts():

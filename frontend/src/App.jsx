@@ -3,15 +3,31 @@ import axios from 'axios';
 import Sidebar from './components/Sidebar';
 import ChatInterface from './components/ChatInterface';
 import FileUploader from './components/FileUploader';
+import SettingsModal from './components/SettingsModal';
 import './App.css';
 
 function App() {
   const [contracts, setContracts] = useState([]);
   const [selectedContract, setSelectedContract] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [isMockMode, setIsMockMode] = useState(false);
 
   useEffect(() => {
     fetchContracts();
+    checkStatus();
   }, []);
+
+  const checkStatus = async () => {
+    try {
+      const res = await axios.get('/api/status');
+      setIsMockMode(res.data.mock_mode);
+      if (res.data.mock_mode) {
+        setShowSettings(true);
+      }
+    } catch (err) {
+      console.error("Failed to check status", err);
+    }
+  };
 
   const fetchContracts = async () => {
     try {
@@ -20,6 +36,11 @@ function App() {
     } catch (err) {
       console.error("Failed to fetch contracts", err);
     }
+  };
+
+  const handleSettingsSave = () => {
+    checkStatus(); // Re-check status to update mock mode state
+    fetchContracts();
   };
 
   return (
@@ -40,7 +61,21 @@ function App() {
               <h1 className="text-2xl font-bold text-gray-800">AI Contract Chatbot</h1>
               <p className="text-sm text-gray-500">Upload PDF contracts and ask questions.</p>
           </div>
+          <div>
+            <button
+              onClick={() => setShowSettings(true)}
+              className={`px-4 py-2 rounded text-white font-bold transition-colors ${isMockMode ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-gray-500 hover:bg-gray-600'}`}
+            >
+              {isMockMode ? '⚠️ Mock Mode (Fix)' : '⚙️ Settings'}
+            </button>
+          </div>
         </header>
+
+        <SettingsModal
+          isOpen={showSettings}
+          onClose={() => setShowSettings(false)}
+          onSaveSuccess={handleSettingsSave}
+        />
 
         <div className="flex-1 flex flex-col gap-4 overflow-hidden">
           {/* Uploader */}
