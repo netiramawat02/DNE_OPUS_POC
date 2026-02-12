@@ -4,21 +4,28 @@ from unittest.mock import MagicMock
 
 # Set env var for clean import
 os.environ["OPENAI_API_KEY"] = "sk-dummy-key-for-testing"
+os.environ["API_ADMIN_KEY"] = "admin-secret-test"
 
 # Also patch settings in case it was already imported by another test
 try:
     from config.settings import settings
     settings.OPENAI_API_KEY = "sk-dummy-key-for-testing"
+    settings.API_ADMIN_KEY = "admin-secret-test"
 except ImportError:
     pass
 
 from fastapi.testclient import TestClient
 # Now import app, which initializes global state
 from api.server import app, state
+# Import auth to update valid keys
+from api.auth import valid_api_keys
 
 class TestAPI(unittest.TestCase):
     def setUp(self):
+        # Ensure the test key is valid
+        valid_api_keys.add("admin-secret-test")
         self.client = TestClient(app)
+        self.client.headers = {"X-API-Key": "admin-secret-test"}
 
     def test_list_contracts_empty(self):
         response = self.client.get("/api/contracts")
@@ -40,6 +47,19 @@ class TestAPI(unittest.TestCase):
             self.assertIn("answer", data)
         finally:
             state.chat_engine.process_query = original_process_query
+
+    def test_generate_key(self):
+        response = self.client.post("/api/admin/generate-key")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn("api_key", data)
+
+        # Verify the new key works
+        new_key = data["api_key"]
+        client2 = TestClient(app)
+        client2.headers = {"X-API-Key": new_key}
+        response = client2.get("/api/contracts")
+        self.assertEqual(response.status_code, 200)
 
 if __name__ == '__main__':
     unittest.main()

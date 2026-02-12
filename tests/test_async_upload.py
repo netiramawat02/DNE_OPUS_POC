@@ -4,13 +4,17 @@ from unittest.mock import MagicMock, patch
 
 # Set env var BEFORE importing app
 os.environ["OPENAI_API_KEY"] = "sk-dummy"
+os.environ["API_ADMIN_KEY"] = "admin-secret-test"
 
 from fastapi.testclient import TestClient
 from api.server import app, state
+from api.auth import valid_api_keys
 
 class TestAsyncUpload(unittest.TestCase):
     def setUp(self):
+        valid_api_keys.add("admin-secret-test")
         self.client = TestClient(app)
+        self.client.headers = {"X-API-Key": "admin-secret-test"}
         # Clear state
         state.metadata_store = []
         state.processed_files = set()
