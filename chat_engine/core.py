@@ -21,6 +21,13 @@ class ChatEngine:
             )
 
     def process_query(self, query: str) -> Dict[str, Any]:
+        # Check if any contracts are indexed
+        if self.rag_engine.is_empty:
+            return {
+                "answer": "No contracts have been indexed. Please upload a readable PDF contract first.",
+                "source_documents": []
+            }
+
         # Retrieve context
         docs = self.rag_engine.search(query)
 

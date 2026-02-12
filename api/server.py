@@ -73,7 +73,16 @@ def process_contract_background(file_path: str, filename: str, contract_id: str)
             return
 
         # Index
-        state.rag_engine.index_documents(text, filename)
+        indexed = state.rag_engine.index_documents(text, filename)
+
+        if not indexed:
+            logger.warning(f"Indexing failed for {filename} (empty content?)")
+            if contract_id in state.processing_files:
+                state.processing_files[contract_id]["status"] = "failed"
+                state.processing_files[contract_id]["error"] = "Content extraction yielded no indexable text."
+
+                # We do NOT add to metadata_store as processed
+            return
 
         # Extract Metadata
         extractor = MetadataExtractor()
@@ -169,7 +178,7 @@ def chat(request: ChatRequest):
             sources=sources
         )
     except Exception as e:
-        logger.error(f"Chat failed: {e}")
+        logger.error(f"Chat failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/contracts", response_model=List[ContractResponse])

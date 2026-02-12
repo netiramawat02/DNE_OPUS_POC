@@ -27,13 +27,14 @@ class RAGEngine:
             chunk_overlap=settings.CHUNK_OVERLAP
         )
 
-    def index_documents(self, text: str, source: str):
+    def index_documents(self, text: str, source: str) -> bool:
         """
         Splits text and adds to vector store.
+        Returns True if documents were indexed, False otherwise.
         """
         chunks = self.text_splitter.split_text(text)
         if not chunks:
-            return
+            return False
 
         documents = [Document(page_content=chunk, metadata={"source": source}) for chunk in chunks]
 
@@ -41,12 +42,18 @@ class RAGEngine:
             self.vector_store = FAISS.from_documents(documents, self.embeddings)
         else:
             self.vector_store.add_documents(documents)
+        return True
+
+    @property
+    def is_empty(self) -> bool:
+        """Checks if the vector store is empty."""
+        return self.vector_store is None
 
     def search(self, query: str, k: int = 3) -> List[Document]:
         """
         Retrieves relevant documents.
         """
-        if not self.vector_store:
+        if self.is_empty:
             return []
         return self.vector_store.similarity_search(query, k=k)
 
