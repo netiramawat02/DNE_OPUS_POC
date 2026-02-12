@@ -1,7 +1,7 @@
 import React from 'react';
 import { FileText, Calendar, Users, Hash } from 'lucide-react';
 
-const Sidebar = ({ contracts }) => {
+const Sidebar = ({ contracts, selectedContract, onSelect }) => {
   return (
     <div className="h-full bg-gray-50 border-r border-gray-200 p-4 overflow-y-auto">
       <h2 className="text-lg font-semibold text-gray-700 mb-4 flex items-center gap-2">
@@ -13,7 +13,15 @@ const Sidebar = ({ contracts }) => {
       ) : (
         <div className="space-y-4">
           {contracts.map((contract) => (
-            <div key={contract.id} className="bg-white p-3 rounded shadow-sm border border-gray-100">
+            <div
+              key={contract.id}
+              className={`p-3 rounded shadow-sm border cursor-pointer transition-colors ${
+                selectedContract?.id === contract.id
+                  ? 'bg-blue-50 border-blue-300 ring-1 ring-blue-300'
+                  : 'bg-white border-gray-100 hover:bg-gray-100'
+              }`}
+              onClick={() => onSelect(contract)}
+            >
               <div className="font-medium text-blue-700 text-sm mb-2 truncate" title={contract.filename}>
                 {contract.filename}
               </div>
