@@ -18,6 +18,9 @@ class TestUploadFailure(unittest.TestCase):
 
         # Mock Chat Engine LLM
         self.mock_llm = MagicMock()
+        mock_response = MagicMock()
+        mock_response.content = "Hello! I am ready to help you with your contracts."
+        self.mock_llm.invoke.return_value = mock_response
         state.chat_engine.llm = self.mock_llm
 
     @patch("ingestion.pdf_loader.PDFLoader.extract_text_from_file")
@@ -54,7 +57,9 @@ class TestUploadFailure(unittest.TestCase):
         # Check chat response
         chat_response = client.post("/api/chat", json={"query": "hello"})
         self.assertEqual(chat_response.status_code, 200)
-        self.assertIn("No contracts have been indexed", chat_response.json()["answer"])
+        # Ensure we get a response, even if no contracts are indexed (conversational fallback)
+        self.assertTrue(len(chat_response.json()["answer"]) > 0)
+        self.assertNotIn("No contracts have been indexed", chat_response.json()["answer"])
 
 if __name__ == "__main__":
     unittest.main()
