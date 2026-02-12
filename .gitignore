@@ -4,3 +4,12 @@ __pycache__/
 .DS_Store
 venv/
 sample_contracts/
+
+# Node
+node_modules/
+npm-debug.log
+package-lock.json
+
+# React build
+build/
+dist/

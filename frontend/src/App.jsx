@@ -31,7 +31,7 @@ function App() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col p-6 h-full overflow-hidden">
         <header className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-800">Jules AI Contract Chatbot</h1>
+          <h1 className="text-2xl font-bold text-gray-800">AI Contract Chatbot</h1>
           <p className="text-sm text-gray-500">Upload PDF contracts and ask questions.</p>
         </header>
 

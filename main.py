@@ -19,7 +19,7 @@ def run_mcp():
         print(f"Failed to start MCP server: {e}")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Jules AI Contract Chatbot")
+    parser = argparse.ArgumentParser(description="AI Contract Chatbot")
     parser.add_argument("mode", choices=["server", "mcp"], nargs="?", default="server", help="Mode: 'server' (FastAPI Backend) or 'mcp' (MCP Server)")
     parser.add_argument("--host", default="0.0.0.0", help="Host for server")
     parser.add_argument("--port", type=int, default=8000, help="Port for server")

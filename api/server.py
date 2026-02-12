@@ -19,7 +19,7 @@ from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-app = FastAPI(title="Jules AI Contract Chatbot API")
+app = FastAPI(title="AI Contract Chatbot API")
 
 # Allow CORS for React Frontend (usually runs on port 3000)
 app.add_middleware(
