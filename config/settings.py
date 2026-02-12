@@ -10,5 +10,6 @@ class Settings:
     CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "1000"))
     CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "200"))
     LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+    API_ADMIN_KEY = os.getenv("API_ADMIN_KEY", "admin-secret")
 
 settings = Settings()
