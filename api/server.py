@@ -17,6 +17,8 @@ from chat_engine.core import ChatEngine
 from config.settings import settings
 from utils.logger import setup_logger
 from api.auth import get_api_key, get_admin_key, add_api_key
+from langchain_community.embeddings import FakeEmbeddings
+from langchain_community.llms import FakeListLLM
 
 logger = setup_logger(__name__)
 
@@ -25,6 +27,40 @@ app = FastAPI(title="AI Contract Chatbot API")
 @app.on_event("startup")
 async def startup_event():
     logger.info("Starting up API Server...")
+
+    # Validate OpenAI API Key
+    try:
+        # Attempt a simple embedding to verify the key
+        logger.info("Validating OpenAI API Key...")
+        state.rag_engine.embeddings.embed_query("test")
+        logger.info("OpenAI API Key is valid.")
+    except Exception as e:
+        error_msg = str(e)
+        if "401" in error_msg or "Incorrect API key" in error_msg:
+            logger.error(f"OpenAI API Key validation failed: {error_msg}")
+            logger.warning("----------------------------------------------------------------")
+            logger.warning("WARNING: INVALID OPENAI API KEY DETECTED")
+            logger.warning("The application will run in MOCK MODE.")
+            logger.warning("You will NOT get real answers based on your PDF.")
+            logger.warning("Please check your .env file and update OPENAI_API_KEY.")
+            logger.warning("----------------------------------------------------------------")
+
+            # Switch to Mock Mode
+            fake_embeddings = FakeEmbeddings(size=1536)
+            fake_llm = FakeListLLM(responses=[
+                "I am running in MOCK MODE because a valid OpenAI API Key was not found. "
+                "I cannot analyze the PDF content, but the system is functional for demonstration purposes. "
+                "Please update your OPENAI_API_KEY to use the full features."
+            ])
+
+            # Replace global state engines with mock versions
+            state.rag_engine = RAGEngine(embeddings=fake_embeddings)
+            state.chat_engine = ChatEngine(state.rag_engine, llm=fake_llm)
+        else:
+            # If it's another error (e.g. network), we might still want to fail or warn
+            logger.error(f"Error validating OpenAI API Key: {e}")
+            # Optional: Decide if we want to fallback for other errors too. For now, only 401.
+
     # Check for OCR tools
     if not shutil.which("tesseract"):
         logger.warning("WARNING: 'tesseract' executable not found. OCR for scanned PDFs will fail. Install tesseract-ocr.")
