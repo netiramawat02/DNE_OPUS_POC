@@ -101,7 +101,7 @@ def process_contract_background(file_path: str, filename: str, contract_id: str)
             os.remove(file_path)
 
 @app.post("/api/upload")
-async def upload_contract(
+def upload_contract(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...)
 ):
@@ -140,7 +140,7 @@ async def upload_contract(
     return {"message": "Upload successful, processing started.", "id": contract_id, "status": "processing"}
 
 @app.post("/api/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest):
+def chat(request: ChatRequest):
     try:
         response = state.chat_engine.process_query(request.query)
 
@@ -158,7 +158,7 @@ async def chat(request: ChatRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/contracts", response_model=List[ContractResponse])
-async def list_contracts():
+def list_contracts():
     processed_list = []
     processed_ids = set()
     # Copy metadata_store to avoid modification issues if any (though append is atomic-ish)
