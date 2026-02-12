@@ -40,6 +40,7 @@ project/
 1. **Prerequisites**:
    - Python 3.10+
    - Tesseract OCR (optional, for scanned PDFs): `sudo apt-get install tesseract-ocr`
+   - Poppler (for PDF-to-image conversion): `sudo apt-get install poppler-utils`
 
 2. **Installation**:
    ```bash

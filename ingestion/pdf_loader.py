@@ -9,6 +9,7 @@ logger = setup_logger(__name__)
 try:
     import pytesseract
     from pdf2image import convert_from_path, convert_from_bytes
+    from pdf2image.exceptions import PDFInfoNotInstalledError
     OCR_AVAILABLE = True
 except ImportError:
     OCR_AVAILABLE = False
@@ -77,6 +78,12 @@ class PDFLoader:
             for image in images:
                 text += pytesseract.image_to_string(image) + "\n"
             return text
+        except PDFInfoNotInstalledError:
+            logger.error("OCR failed: Poppler not found. Please install poppler-utils (sudo apt-get install poppler-utils).")
+            return ""
+        except pytesseract.TesseractNotFoundError:
+            logger.error("OCR failed: Tesseract not found. Please install tesseract-ocr (sudo apt-get install tesseract-ocr).")
+            return ""
         except Exception as e:
             logger.error(f"OCR failed for {file_path}: {e}")
             return ""
@@ -93,6 +100,12 @@ class PDFLoader:
             for image in images:
                 text += pytesseract.image_to_string(image) + "\n"
             return text
+        except PDFInfoNotInstalledError:
+            logger.error("OCR failed: Poppler not found. Please install poppler-utils.")
+            return ""
+        except pytesseract.TesseractNotFoundError:
+            logger.error("OCR failed: Tesseract not found. Please install tesseract-ocr.")
+            return ""
         except Exception as e:
             logger.error(f"OCR failed for bytes: {e}")
             return ""

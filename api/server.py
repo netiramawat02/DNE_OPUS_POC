@@ -22,6 +22,15 @@ logger = setup_logger(__name__)
 
 app = FastAPI(title="AI Contract Chatbot API")
 
+@app.on_event("startup")
+async def startup_event():
+    logger.info("Starting up API Server...")
+    # Check for OCR tools
+    if not shutil.which("tesseract"):
+        logger.warning("WARNING: 'tesseract' executable not found. OCR for scanned PDFs will fail. Install tesseract-ocr.")
+    if not shutil.which("pdftoppm"): # pdftoppm is part of poppler-utils
+        logger.warning("WARNING: 'pdftoppm' executable not found. OCR for scanned PDFs will fail. Install poppler-utils.")
+
 # Allow CORS for React Frontend (usually runs on port 3000)
 app.add_middleware(
     CORSMiddleware,
@@ -69,7 +78,7 @@ def process_contract_background(file_path: str, filename: str, contract_id: str)
             logger.warning(f"No text extracted for {filename}")
             if contract_id in state.processing_files:
                 state.processing_files[contract_id]["status"] = "failed"
-                state.processing_files[contract_id]["error"] = "No text extracted"
+                state.processing_files[contract_id]["error"] = "No text extracted. The file might be an image-based PDF and OCR dependencies (tesseract-ocr, poppler-utils) are missing or not configured."
             return
 
         # Index

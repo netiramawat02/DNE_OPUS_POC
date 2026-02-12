@@ -7,6 +7,7 @@ class TestChat(unittest.TestCase):
     def test_process_query(self):
         # Mock RAG Engine
         mock_rag = MagicMock()
+        mock_rag.is_empty = False  # Explicitly set is_empty to False
         mock_rag.search.return_value = [
             Document(page_content="The contract expires on 2025-12-31.", metadata={"source": "contract.pdf"})
         ]
