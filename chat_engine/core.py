@@ -20,7 +20,7 @@ class ChatEngine:
                 temperature=0
             )
 
-    def process_query(self, query: str) -> Dict[str, Any]:
+    def process_query(self, query: str, contract_id: str = None) -> Dict[str, Any]:
         # Check if any contracts are indexed
         if self.rag_engine.is_empty:
             return {
@@ -29,7 +29,11 @@ class ChatEngine:
             }
 
         # Retrieve context
-        docs = self.rag_engine.search(query)
+        filter_dict = None
+        if contract_id:
+            filter_dict = {"contract_id": contract_id}
+
+        docs = self.rag_engine.search(query, filter=filter_dict)
 
         # Format context
         context_parts = []
@@ -41,8 +45,11 @@ class ChatEngine:
         context = "\n".join(context_parts)
 
         if not context:
+            msg = "I couldn't find any relevant information in the uploaded contracts to answer your question."
+            if contract_id:
+                msg = "I couldn't find any relevant information in the selected contract to answer your question."
             return {
-                "answer": "I couldn't find any relevant information in the uploaded contracts to answer your question.",
+                "answer": msg,
                 "source_documents": []
             }
 

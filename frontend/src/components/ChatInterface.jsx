@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import { Send, User, Bot, FileText } from 'lucide-react';
 
-const ChatInterface = () => {
+const ChatInterface = ({ selectedContract }) => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -24,7 +24,11 @@ const ChatInterface = () => {
     setLoading(true);
 
     try {
-      const response = await axios.post('/api/chat', { query: userMsg.content });
+      const payload = {
+        query: userMsg.content,
+        contract_id: selectedContract?.id
+      };
+      const response = await axios.post('/api/chat', payload);
       const botMsg = {
         role: 'assistant',
         content: response.data.answer,
@@ -40,11 +44,18 @@ const ChatInterface = () => {
 
   return (
     <div className="flex flex-col h-full bg-white rounded-lg shadow-md border border-gray-200">
+      {selectedContract && (
+        <div className="bg-blue-50 px-4 py-2 border-b border-blue-100 flex items-center gap-2 text-sm text-blue-800">
+           <FileText size={16} />
+           <span className="font-semibold">Context:</span> {selectedContract.filename}
+        </div>
+      )}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 && (
           <div className="text-center text-gray-400 mt-10">
             <Bot className="w-12 h-12 mx-auto mb-2 opacity-50" />
             <p>Ask questions about your uploaded contracts.</p>
+            {!selectedContract && <p className="text-xs mt-2">Select a contract from the sidebar to focus the search.</p>}
           </div>
         )}
         {messages.map((msg, idx) => (

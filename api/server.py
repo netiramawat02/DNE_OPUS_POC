@@ -53,6 +53,7 @@ state = AppState()
 # Request Models
 class ChatRequest(BaseModel):
     query: str
+    contract_id: Optional[str] = None
 
 class ChatResponse(BaseModel):
     answer: str
@@ -82,7 +83,11 @@ def process_contract_background(file_path: str, filename: str, contract_id: str)
             return
 
         # Index
-        indexed = state.rag_engine.index_documents(text, filename)
+        indexed = state.rag_engine.index_documents(
+            text,
+            filename,
+            metadata={"contract_id": contract_id}
+        )
 
         if not indexed:
             logger.warning(f"Indexing failed for {filename} (empty content?)")
@@ -175,7 +180,7 @@ def upload_contract(
 @app.post("/api/chat", response_model=ChatResponse)
 def chat(request: ChatRequest):
     try:
-        response = state.chat_engine.process_query(request.query)
+        response = state.chat_engine.process_query(request.query, contract_id=request.contract_id)
 
         # Extract sources names
         sources = []

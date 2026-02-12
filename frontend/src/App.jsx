@@ -7,6 +7,7 @@ import './App.css';
 
 function App() {
   const [contracts, setContracts] = useState([]);
+  const [selectedContract, setSelectedContract] = useState(null);
 
   useEffect(() => {
     fetchContracts();
@@ -25,7 +26,11 @@ function App() {
     <div className="flex h-screen bg-gray-100 font-sans">
       {/* Sidebar (Left) */}
       <div className="w-80 h-full hidden md:block">
-        <Sidebar contracts={contracts} />
+        <Sidebar
+          contracts={contracts}
+          selectedContract={selectedContract}
+          onSelect={setSelectedContract}
+        />
       </div>
 
       {/* Main Content */}
@@ -45,7 +50,7 @@ function App() {
 
           {/* Chat */}
           <div className="flex-1 overflow-hidden">
-             <ChatInterface />
+             <ChatInterface selectedContract={selectedContract} />
           </div>
         </div>
       </div>
