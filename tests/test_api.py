@@ -61,16 +61,31 @@ class TestAPI(unittest.TestCase):
         response = client2.get("/api/contracts")
         self.assertEqual(response.status_code, 200)
 
-    def test_unauthorized_access(self):
-        """Test that endpoints are protected and require API Key."""
+    def test_public_access(self):
+        """Test that main endpoints are publicly accessible."""
         client_no_auth = TestClient(app)
-        # Should fail
+        # Should succeed
         response = client_no_auth.get("/api/contracts")
-        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.status_code, 200)
 
-        # Chat should also fail
-        response = client_no_auth.post("/api/chat", json={"query": "Hello"})
-        self.assertEqual(response.status_code, 401)
+        # Chat should also succeed (mock logic needs to be patched)
+        original_process_query = state.chat_engine.process_query
+        state.chat_engine.process_query = MagicMock(return_value={
+            "answer": "Public access working.",
+            "source_documents": []
+        })
+        try:
+            response = client_no_auth.post("/api/chat", json={"query": "Hello"})
+            self.assertEqual(response.status_code, 200)
+        finally:
+            state.chat_engine.process_query = original_process_query
+
+    def test_admin_endpoint_protected(self):
+        """Test that admin endpoints are still protected."""
+        client_no_auth = TestClient(app)
+        # Generate Key should fail
+        response = client_no_auth.post("/api/admin/generate-key")
+        self.assertTrue(response.status_code in [401, 403])
 
     def test_protected_access_with_key(self):
         """Test that endpoints are accessible with a valid API Key."""
