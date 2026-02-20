@@ -26,6 +26,11 @@ class TestAPI(unittest.TestCase):
         valid_api_keys.add("admin-secret-test")
         self.client = TestClient(app)
         self.client.headers = {"X-API-Key": "admin-secret-test"}
+        # Trigger startup events
+        self.client.__enter__()
+
+    def tearDown(self):
+        self.client.__exit__(None, None, None)
 
     def test_list_contracts_empty(self):
         response = self.client.get("/api/contracts")
