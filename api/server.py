@@ -31,27 +31,29 @@ async def startup_event():
 
     # Initialize Engines
     try:
-        if settings.OPENAI_API_KEY:
-            logger.info("Initializing RAG Engine...")
+        if settings.PERPLEXITY_API_KEY:
+            logger.info("Initializing RAG Engine with Perplexity...")
             state.rag_engine = RAGEngine()
             state.chat_engine = ChatEngine(state.rag_engine)
+            logger.info("Engines initialized successfully")
         else:
-            raise ValueError("OPENAI_API_KEY not set")
+            raise ValueError("PERPLEXITY_API_KEY not set")
 
     except Exception as e:
         logger.warning(f"Failed to initialize engines: {e}")
         logger.warning("----------------------------------------------------------------")
-        logger.warning("WARNING: API KEY MISSING OR INVALID")
+        logger.warning("WARNING: PERPLEXITY API KEY MISSING OR INVALID")
         logger.warning("The application will run in MOCK MODE.")
         logger.warning("You will NOT get real answers based on your PDF.")
+        logger.warning("Please set PERPLEXITY_API_KEY in your .env file.")
         logger.warning("----------------------------------------------------------------")
 
         # Switch to Mock Mode
-        fake_embeddings = FakeEmbeddings(size=1536)
+        fake_embeddings = FakeEmbeddings(size=384)
         fake_llm = FakeListChatModel(responses=[
-            "I am running in MOCK MODE because a valid OpenAI API Key was not found. "
+            "I am running in MOCK MODE because a valid Perplexity API Key was not found. "
             "I cannot analyze the PDF content, but the system is functional for demonstration purposes. "
-            "Please update your OPENAI_API_KEY to use the full features."
+            "Please set PERPLEXITY_API_KEY in your .env file to use the full features."
         ])
 
         state.rag_engine = RAGEngine(embeddings=fake_embeddings)
@@ -174,20 +176,20 @@ def generate_api_key(admin_key: str = Depends(get_admin_key)):
     add_api_key(new_key)
     return {"api_key": new_key, "message": "API Key generated successfully"}
 
-@app.post("/api/admin/set-openai-key")
-def set_openai_key(api_key: str = Body(..., embed=True), admin_key: str = Depends(get_admin_key)):
+@app.post("/api/admin/set-perplexity-key")
+def set_perplexity_key(api_key: str = Body(..., embed=True), admin_key: str = Depends(get_admin_key)):
     """
-    Updates the OpenAI API Key and re-initializes engines.
+    Updates the Perplexity API Key and re-initializes engines.
     Protected by Admin Key.
     """
     if not api_key:
         raise HTTPException(status_code=400, detail="API Key cannot be empty")
 
-    logger.info("Updating OpenAI API Key...")
+    logger.info("Updating Perplexity API Key...")
 
     # 1. Update Runtime Settings
-    os.environ["OPENAI_API_KEY"] = api_key
-    settings.OPENAI_API_KEY = api_key
+    os.environ["PERPLEXITY_API_KEY"] = api_key
+    settings.PERPLEXITY_API_KEY = api_key
 
     # 2. Update .env file
     env_path = os.path.join(os.getcwd(), ".env")
@@ -197,10 +199,10 @@ def set_openai_key(api_key: str = Body(..., embed=True), admin_key: str = Depend
                 content = f.read()
 
             # Replace existing key or append if not found
-            if re.search(r"^OPENAI_API_KEY=", content, flags=re.MULTILINE):
-                content = re.sub(r"^OPENAI_API_KEY=.*", f"OPENAI_API_KEY={api_key}", content, flags=re.MULTILINE)
+            if re.search(r"^PERPLEXITY_API_KEY=", content, flags=re.MULTILINE):
+                content = re.sub(r"^PERPLEXITY_API_KEY=.*", f"PERPLEXITY_API_KEY={api_key}", content, flags=re.MULTILINE)
             else:
-                content += f"\nOPENAI_API_KEY={api_key}"
+                content += f"\nPERPLEXITY_API_KEY={api_key}"
 
             with open(env_path, "w") as f:
                 f.write(content)
@@ -214,7 +216,7 @@ def set_openai_key(api_key: str = Body(..., embed=True), admin_key: str = Depend
         logger.info("Re-initializing Engines with new key...")
         state.rag_engine = RAGEngine()
         state.chat_engine = ChatEngine(state.rag_engine)
-        return {"message": "OpenAI API Key updated and engines re-initialized successfully"}
+        return {"message": "Perplexity API Key updated and engines re-initialized successfully"}
     except Exception as e:
         logger.error(f"Failed to re-initialize engines: {e}")
         # Rollback settings if failed? Maybe not, just report error.

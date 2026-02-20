@@ -4,24 +4,21 @@ from unittest.mock import MagicMock, patch
 import sys
 
 # Set dummy env vars BEFORE importing api.server
-os.environ["OPENAI_API_KEY"] = "dummy-key"
+os.environ["PERPLEXITY_API_KEY"] = "pplx-test"
 os.environ["API_ADMIN_KEY"] = "admin-secret"
 
-# Mock OpenAI
-sys.modules["langchain_openai"] = MagicMock()
-sys.modules["langchain_openai.embeddings"] = MagicMock()
-sys.modules["langchain_openai.chat_models"] = MagicMock()
+# Mock HuggingFace embeddings
+sys.modules["langchain_huggingface"] = MagicMock()
 
 # Mock specific classes
 mock_embeddings = MagicMock()
-mock_embeddings.embed_documents.return_value = [[0.1] * 1536]
-mock_embeddings.embed_query.return_value = [0.1] * 1536
+mock_embeddings.embed_documents.return_value = [[0.1] * 384]
+mock_embeddings.embed_query.return_value = [0.1] * 384
 
 mock_chat = MagicMock()
 mock_chat.invoke.return_value.content = "This is a mocked answer."
 
-sys.modules["langchain_openai"].OpenAIEmbeddings.return_value = mock_embeddings
-sys.modules["langchain_openai"].ChatOpenAI.return_value = mock_chat
+
 
 # Mock FAISS
 sys.modules["langchain_community.vectorstores"] = MagicMock()

@@ -8,7 +8,7 @@ def run_server(host="0.0.0.0", port=8000):
     print(f"Starting FastAPI Server on {host}:{port}...")
     # Add project root to path
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-    uvicorn.run("api.server:app", host=host, port=port, reload=True)
+    uvicorn.run("api.server:app", host=host, port=port, reload=False)
 
 def run_mcp():
     print("Starting MCP Server...")

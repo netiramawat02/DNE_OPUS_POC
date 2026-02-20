@@ -1,5 +1,5 @@
 from langchain_community.vectorstores import FAISS
-from langchain_openai import OpenAIEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
 from config.settings import settings
@@ -11,14 +11,9 @@ class RAGEngine:
         if embeddings:
             self.embeddings = embeddings
         else:
-            # Use OpenAI for embeddings (Perplexity doesn't provide embeddings)
-            api_key = settings.OPENAI_API_KEY
-            if not api_key:
-                raise ValueError("OpenAI API Key is missing for embeddings. Please set the OPENAI_API_KEY environment variable.")
-
-            self.embeddings = OpenAIEmbeddings(
-                model=settings.EMBEDDING_MODEL,
-                openai_api_key=api_key
+            # Use free HuggingFace embeddings (no API key needed)
+            self.embeddings = HuggingFaceEmbeddings(
+                model_name=settings.EMBEDDING_MODEL
             )
 
         self.vector_store = None
