@@ -83,6 +83,36 @@ class PerplexityLLM:
         self.model = model
         self.base_url = "https://api.perplexity.ai"
     
+    @staticmethod
+    def validate_api_key(api_key: str, model: str = "llama-3-sonar-small-32k-chat") -> bool:
+        """
+        Validates the Perplexity API Key by making a minimal request.
+        Returns True if the key is valid, False otherwise.
+        """
+        if not api_key:
+            return False
+
+        try:
+            # Minimal request to check authorization
+            response = requests.post(
+                "https://api.perplexity.ai/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": model,
+                    "messages": [{"role": "user", "content": "ping"}],
+                    "max_tokens": 1
+                },
+                timeout=5  # Short timeout to avoid blocking startup too long
+            )
+            response.raise_for_status()
+            return True
+        except Exception as e:
+            logger.warning(f"Perplexity API Key validation failed: {e}")
+            return False
+
     def invoke(self, messages):
         """Invoke Perplexity API with messages"""
         # Convert LangChain message format to Perplexity format

@@ -9,12 +9,13 @@ import io
 import tempfile
 import logging
 import re
+import asyncio
 
 # Re-use existing engines
 from ingestion.pdf_loader import PDFLoader
 from rag_engine.vector_store import RAGEngine
 from metadata_extractor.extractor import MetadataExtractor, ContractMetadata
-from chat_engine.core import ChatEngine
+from chat_engine.core import ChatEngine, PerplexityLLM
 from config.settings import settings
 from utils.logger import setup_logger
 from api.auth import get_api_key, get_admin_key, add_api_key
@@ -32,6 +33,14 @@ async def startup_event():
     # Initialize Engines
     try:
         if settings.PERPLEXITY_API_KEY:
+            # Validate Key First!
+            loop = asyncio.get_event_loop()
+            # Pass the configured model for validation to ensure both key and model access are valid
+            is_valid = await loop.run_in_executor(None, PerplexityLLM.validate_api_key, settings.PERPLEXITY_API_KEY, settings.PERPLEXITY_MODEL)
+
+            if not is_valid:
+                raise ValueError("Invalid Perplexity API Key (validation failed)")
+
             logger.info("Initializing RAG Engine with Perplexity...")
             state.rag_engine = RAGEngine()
             state.chat_engine = ChatEngine(state.rag_engine)
