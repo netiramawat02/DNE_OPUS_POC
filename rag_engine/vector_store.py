@@ -11,10 +11,10 @@ class RAGEngine:
         if embeddings:
             self.embeddings = embeddings
         else:
-            # Default to OpenAI Embeddings
+            # Use OpenAI for embeddings (Perplexity doesn't provide embeddings)
             api_key = settings.OPENAI_API_KEY
             if not api_key:
-                raise ValueError("OpenAI API Key is missing. Please set the OPENAI_API_KEY environment variable.")
+                raise ValueError("OpenAI API Key is missing for embeddings. Please set the OPENAI_API_KEY environment variable.")
 
             self.embeddings = OpenAIEmbeddings(
                 model=settings.EMBEDDING_MODEL,

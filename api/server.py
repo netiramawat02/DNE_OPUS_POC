@@ -28,15 +28,29 @@ app = FastAPI(title="AI Contract Chatbot API")
 async def startup_event():
     logger.info("Starting up API Server...")
 
-    # Validate OpenAI API Key
+    # Validate Perplexity API Key
     try:
-        # Attempt a simple embedding to verify the key
-        logger.info("Validating OpenAI API Key...")
-        state.rag_engine.embeddings.embed_query("test")
-        logger.info("OpenAI API Key is valid.")
+        logger.info("Validating Perplexity API Key...")
+        import requests
+        response = requests.post(
+            "https://api.perplexity.ai/chat/completions",
+            headers={
+                "Authorization": f"Bearer {settings.PERPLEXITY_API_KEY}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": settings.PERPLEXITY_MODEL,
+                "messages": [{"role": "user", "content": "test"}],
+                "max_tokens": 10
+            }
+        )
+        response.raise_for_status()
+        logger.info("Perplexity API Key is valid.")
     except Exception as e:
         error_msg = str(e)
         if "401" in error_msg or "Incorrect API key" in error_msg:
+            logger.error(f"Perplexity API Key validation failed: {error_msg}")
+            logger.warning("MOCK MODE: Using fallback responses")
             logger.error(f"OpenAI API Key validation failed: {error_msg}")
             logger.warning("----------------------------------------------------------------")
             logger.warning("WARNING: INVALID OPENAI API KEY DETECTED")
