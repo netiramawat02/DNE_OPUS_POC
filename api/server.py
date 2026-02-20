@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks, Depends
+from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks, Depends, Body
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional, Dict
@@ -8,6 +8,7 @@ import uuid
 import io
 import tempfile
 import logging
+import re
 
 # Re-use existing engines
 from ingestion.pdf_loader import PDFLoader
@@ -172,6 +173,52 @@ def generate_api_key(admin_key: str = Depends(get_admin_key)):
     new_key = str(uuid.uuid4())
     add_api_key(new_key)
     return {"api_key": new_key, "message": "API Key generated successfully"}
+
+@app.post("/api/admin/set-openai-key")
+def set_openai_key(api_key: str = Body(..., embed=True), admin_key: str = Depends(get_admin_key)):
+    """
+    Updates the OpenAI API Key and re-initializes engines.
+    Protected by Admin Key.
+    """
+    if not api_key:
+        raise HTTPException(status_code=400, detail="API Key cannot be empty")
+
+    logger.info("Updating OpenAI API Key...")
+
+    # 1. Update Runtime Settings
+    os.environ["OPENAI_API_KEY"] = api_key
+    settings.OPENAI_API_KEY = api_key
+
+    # 2. Update .env file
+    env_path = os.path.join(os.getcwd(), ".env")
+    if os.path.exists(env_path):
+        try:
+            with open(env_path, "r") as f:
+                content = f.read()
+
+            # Replace existing key or append if not found
+            if re.search(r"^OPENAI_API_KEY=", content, flags=re.MULTILINE):
+                content = re.sub(r"^OPENAI_API_KEY=.*", f"OPENAI_API_KEY={api_key}", content, flags=re.MULTILINE)
+            else:
+                content += f"\nOPENAI_API_KEY={api_key}"
+
+            with open(env_path, "w") as f:
+                f.write(content)
+            logger.info("Updated .env file")
+        except Exception as e:
+            logger.error(f"Failed to update .env file: {e}")
+            # Non-critical, continue
+
+    # 3. Re-initialize Engines
+    try:
+        logger.info("Re-initializing Engines with new key...")
+        state.rag_engine = RAGEngine()
+        state.chat_engine = ChatEngine(state.rag_engine)
+        return {"message": "OpenAI API Key updated and engines re-initialized successfully"}
+    except Exception as e:
+        logger.error(f"Failed to re-initialize engines: {e}")
+        # Rollback settings if failed? Maybe not, just report error.
+        raise HTTPException(status_code=500, detail=f"Failed to re-initialize engines: {str(e)}")
 
 @app.post("/api/upload")
 def upload_contract(
