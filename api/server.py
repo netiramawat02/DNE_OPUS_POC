@@ -28,52 +28,33 @@ app = FastAPI(title="AI Contract Chatbot API")
 async def startup_event():
     logger.info("Starting up API Server...")
 
-    # Validate Perplexity API Key
+    # Initialize Engines
     try:
-        logger.info("Validating Perplexity API Key...")
-        import requests
-        response = requests.post(
-            "https://api.perplexity.ai/chat/completions",
-            headers={
-                "Authorization": f"Bearer {settings.PERPLEXITY_API_KEY}",
-                "Content-Type": "application/json"
-            },
-            json={
-                "model": settings.PERPLEXITY_MODEL,
-                "messages": [{"role": "user", "content": "test"}],
-                "max_tokens": 10
-            }
-        )
-        response.raise_for_status()
-        logger.info("Perplexity API Key is valid.")
-    except Exception as e:
-        error_msg = str(e)
-        if "401" in error_msg or "Incorrect API key" in error_msg:
-            logger.error(f"Perplexity API Key validation failed: {error_msg}")
-            logger.warning("MOCK MODE: Using fallback responses")
-            logger.error(f"OpenAI API Key validation failed: {error_msg}")
-            logger.warning("----------------------------------------------------------------")
-            logger.warning("WARNING: INVALID OPENAI API KEY DETECTED")
-            logger.warning("The application will run in MOCK MODE.")
-            logger.warning("You will NOT get real answers based on your PDF.")
-            logger.warning("Please check your .env file and update OPENAI_API_KEY.")
-            logger.warning("----------------------------------------------------------------")
-
-            # Switch to Mock Mode
-            fake_embeddings = FakeEmbeddings(size=1536)
-            fake_llm = FakeListChatModel(responses=[
-                "I am running in MOCK MODE because a valid OpenAI API Key was not found. "
-                "I cannot analyze the PDF content, but the system is functional for demonstration purposes. "
-                "Please update your OPENAI_API_KEY to use the full features."
-            ])
-
-            # Replace global state engines with mock versions
-            state.rag_engine = RAGEngine(embeddings=fake_embeddings)
-            state.chat_engine = ChatEngine(state.rag_engine, llm=fake_llm)
+        if settings.OPENAI_API_KEY:
+            logger.info("Initializing RAG Engine...")
+            state.rag_engine = RAGEngine()
+            state.chat_engine = ChatEngine(state.rag_engine)
         else:
-            # If it's another error (e.g. network), we might still want to fail or warn
-            logger.error(f"Error validating OpenAI API Key: {e}")
-            # Optional: Decide if we want to fallback for other errors too. For now, only 401.
+            raise ValueError("OPENAI_API_KEY not set")
+
+    except Exception as e:
+        logger.warning(f"Failed to initialize engines: {e}")
+        logger.warning("----------------------------------------------------------------")
+        logger.warning("WARNING: API KEY MISSING OR INVALID")
+        logger.warning("The application will run in MOCK MODE.")
+        logger.warning("You will NOT get real answers based on your PDF.")
+        logger.warning("----------------------------------------------------------------")
+
+        # Switch to Mock Mode
+        fake_embeddings = FakeEmbeddings(size=1536)
+        fake_llm = FakeListChatModel(responses=[
+            "I am running in MOCK MODE because a valid OpenAI API Key was not found. "
+            "I cannot analyze the PDF content, but the system is functional for demonstration purposes. "
+            "Please update your OPENAI_API_KEY to use the full features."
+        ])
+
+        state.rag_engine = RAGEngine(embeddings=fake_embeddings)
+        state.chat_engine = ChatEngine(state.rag_engine, llm=fake_llm)
 
     # Check for OCR tools
     if not shutil.which("tesseract"):
@@ -92,8 +73,8 @@ app.add_middleware(
 
 # Global State (In-Memory)
 class AppState:
-    rag_engine = RAGEngine()
-    chat_engine = ChatEngine(rag_engine)
+    rag_engine = None
+    chat_engine = None
     metadata_store: List[dict] = []
     processed_files = set()
     processing_files: Dict[str, dict] = {}
@@ -149,8 +130,12 @@ def process_contract_background(file_path: str, filename: str, contract_id: str)
             return
 
         # Extract Metadata
-        extractor = MetadataExtractor()
-        meta = extractor.extract(text)
+        meta = None
+        try:
+            extractor = MetadataExtractor()
+            meta = extractor.extract(text)
+        except Exception as e:
+            logger.warning(f"Metadata extraction failed: {e}. Proceeding without metadata.")
 
         # Update state: Move from processing to metadata_store
         record = {
