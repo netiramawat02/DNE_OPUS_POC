@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 import sys
 
 # Set dummy env vars BEFORE importing api.server
-os.environ["PERPLEXITY_API_KEY"] = "pplx-test"
+os.environ["OPENAI_API_KEY"] = "openai-test"
 os.environ["API_ADMIN_KEY"] = "admin-secret"
 
 # Mock HuggingFace embeddings

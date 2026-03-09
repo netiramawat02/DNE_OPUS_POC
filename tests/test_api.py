@@ -3,13 +3,13 @@ import unittest
 from unittest.mock import MagicMock
 
 # Set env var for clean import
-os.environ["PERPLEXITY_API_KEY"] = "pplx-test-key"
+os.environ["OPENAI_API_KEY"] = "openai-test-key"
 os.environ["API_ADMIN_KEY"] = "admin-secret-test"
 
 # Also patch settings in case it was already imported by another test
 try:
     from config.settings import settings
-    settings.PERPLEXITY_API_KEY = "pplx-test-key"
+    settings.OPENAI_API_KEY = "openai-test-key"
     settings.API_ADMIN_KEY = "admin-secret-test"
 except ImportError:
     pass
